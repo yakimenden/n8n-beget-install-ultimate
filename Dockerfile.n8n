@@ -1,0 +1,72 @@
+```dockerfile
+FROM n8nio/n8n:latest
+
+USER root
+
+# Обновляем репозитории и пакеты Alpine
+RUN apk update && apk upgrade --no-cache
+
+# Системные пакеты (включая docker-cli, 7zip, и другие зависимости)
+RUN apk add --no-cache \
+    bash \
+    curl \
+    git \
+    make \
+    g++ \
+    gcc \
+    python3 \
+    py3-pip \
+    libffi-dev \
+    yt-dlp \
+    apache2-utils \
+    ffmpeg \
+    docker-cli \
+    postgresql-client \
+    p7zip
+
+# Создаем группу docker для пользователя node (если нужен доступ к docker)
+ARG DOCKER_GID=999
+RUN addgroup -S -g ${DOCKER_GID} docker 2>/dev/null || true && \
+    addgroup node docker 2>/dev/null || true
+
+# Оптимизируем npm
+RUN npm config set fund false && npm config set audit false
+
+# Устанавливаем популярные npm пакеты глобально
+RUN for pkg in \
+    axios \
+    node-fetch \
+    form-data \
+    moment \
+    date-fns \
+    lodash \
+    fs-extra \
+    csv-parser \
+    xml2js \
+    js-yaml \
+    xlsx \
+    jsonwebtoken \
+    uuid \
+    openai \
+    langchain \
+    node-telegram-bot-api \
+    discord.js \
+    mongoose \
+    ioredis \
+    bcrypt \
+    validator \
+    joi \
+    winston \
+    dotenv \
+    prom-client \
+    adm-zip \
+    archiver; do \
+    echo "🔧 Устанавливаем $pkg..." && npm install -g "$pkg" --silent || echo "⚠️ Не удалось установить $pkg"; \
+done
+
+USER node
+
+EXPOSE 5678
+```
+
+---
