@@ -1,4 +1,3 @@
-javascript
 const TelegramBot = require('node-telegram-bot-api');
 const { execSync, exec } = require('child_process');
 const path = require('path');
