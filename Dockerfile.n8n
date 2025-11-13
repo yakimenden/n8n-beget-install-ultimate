@@ -2,36 +2,43 @@ FROM n8nio/n8n:latest
 
 USER root
 
-# Обновляем репозитории и пакеты Alpine
-RUN apk update && apk upgrade --no-cache
+# Alpine репозитории + апдейт
+RUN set -eux; \
+  printf '%s\n' \
+    "https://dl-cdn.alpinelinux.org/alpine/v3.22/main" \
+    "https://dl-cdn.alpinelinux.org/alpine/v3.22/community" \
+  > /etc/apk/repositories; \
+  apk update; \
+  apk upgrade --no-cache
 
-# Системные пакеты (включая docker-cli, 7zip, и другие зависимости)
+# Системные пакеты (ffmpeg включён) + docker-cli для docker logs внутри контейнера
 RUN apk add --no-cache \
-    bash \
-    curl \
-    git \
-    make \
-    g++ \
-    gcc \
-    python3 \
-    py3-pip \
-    libffi-dev \
-    yt-dlp \
-    apache2-utils \
-    ffmpeg \
-    docker-cli \
-    postgresql-client \
-    p7zip
+  bash \
+  curl \
+  git \
+  make \
+  g++ \
+  gcc \
+  python3 \
+  py3-pip \
+  libffi-dev \
+  yt-dlp \
+  apache2-utils \
+  ffmpeg 
 
-# Создаем группу docker для пользователя node (если нужен доступ к docker)
+# ДОБАВЛЕНО: docker-cli для docker logs внутри контейнера
+RUN apk add --no-cache docker-cli
+
+# (опционально) Создать группу docker и добавить пользователя node
 ARG DOCKER_GID=999
-RUN addgroup -S -g ${DOCKER_GID} docker 2>/dev/null || true && \
-    addgroup node docker 2>/dev/null || true
+RUN set -eux; \
+  addgroup -S -g ${DOCKER_GID} docker || addgroup -S docker; \
+  adduser node docker || true
 
-# Оптимизируем npm
+# Чуть ускорим npm
 RUN npm config set fund false && npm config set audit false
 
-# Устанавливаем популярные npm пакеты глобально
+# npm-глобалки (оставляем все как у тебя было)
 RUN for pkg in \
     axios \
     node-fetch \
@@ -40,16 +47,26 @@ RUN for pkg in \
     date-fns \
     lodash \
     fs-extra \
+    path \
     csv-parser \
     xml2js \
     js-yaml \
     xlsx \
     jsonwebtoken \
+    simple-oauth2 \
     uuid \
     openai \
+    @tensorflow/tfjs-node \
     langchain \
     node-telegram-bot-api \
     discord.js \
+    vk-io \
+    whatsapp-web.js \
+    fluent-ffmpeg \
+    ffmpeg-static \
+    google-tts-api \
+    @vitalets/google-translate-token \
+    node-wav \
     mongoose \
     ioredis \
     bcrypt \
@@ -58,11 +75,14 @@ RUN for pkg in \
     winston \
     dotenv \
     prom-client \
+    node-downloader-helper \
     adm-zip \
-    archiver; do \
-    echo "🔧 Устанавливаем $pkg..." && npm install -g "$pkg" --silent || echo "⚠️ Не удалось установить $pkg"; \
-done
+    archiver \
+  ; do \
+    echo "🔧 Устанавливаем $pkg..." && npm install -g "$pkg" || echo "⚠️ Не удалось установить $pkg, продолжаем..."; \
+  done
+
+# Локально — для доступности в Code-нодах
+RUN npm install oauth-1.0a
 
 USER node
-
-EXPOSE 5678
