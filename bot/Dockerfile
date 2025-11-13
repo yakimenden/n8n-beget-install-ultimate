@@ -1,4 +1,4 @@
-```dockerfile
+dockerfile
 FROM node:20-alpine
 
 WORKDIR /app
@@ -22,6 +22,3 @@ COPY bot.js .
 
 # Запускаем бота
 CMD ["node", "bot.js"]
-```
-
----

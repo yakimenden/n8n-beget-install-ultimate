@@ -1,52 +1,14 @@
-```yaml
 version: "3.8"
 
 services:
-  n8n:
-    build:
-      context: .
-      dockerfile: Dockerfile.n8n
-      args:
-        DOCKER_GID: ${DOCKER_GID:-999}
-    container_name: n8n-app
-    restart: always
-    ports:
-      - "5678:5678"
-    environment:
-      - DB_TYPE=postgresdb
-      - DB_POSTGRESDB_HOST=n8n-postgres
-      - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=n8n
-      - DB_POSTGRESDB_USER=n8n
-      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
-      - N8N_EXPRESS_TRUST_PROXY=true
-      - N8N_TRUSTED_PROXIES=172.18.0.0/16
-      - WEBHOOK_URL=https://${DOMAIN}/
-      - GENERIC_TIMEZONE=Asia/Novosibirsk
-      - NODE_ENV=production
-    volumes:
-      - n8n_data:/home/node/.n8n
-      - ./data:/data
-    networks:
-      - n8n-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5678/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    depends_on:
-      - n8n-postgres
-      - n8n-redis
-
   n8n-postgres:
     image: postgres:15-alpine
     container_name: n8n-postgres
     restart: always
     environment:
-      - POSTGRES_USER=n8n
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=n8n
+      POSTGRES_USER: n8n
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: n8n
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -72,12 +34,46 @@ services:
       timeout: 3s
       retries: 3
 
+  n8n-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.n8n
+    container_name: n8n-app
+    restart: always
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: n8n-postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: n8n
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_EXPRESS_TRUST_PROXY: "true"
+      N8N_TRUSTED_PROXIES: 172.18.0.0/16
+      WEBHOOK_URL: https://${DOMAIN}/
+      GENERIC_TIMEZONE: Asia/Novosibirsk
+      NODE_ENV: production
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./data:/data
+    networks:
+      - n8n-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5678/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      n8n-postgres:
+        condition: service_healthy
+      n8n-redis:
+        condition: service_healthy
+
   n8n-traefik:
     image: traefik:v2.10
     container_name: n8n-traefik
     restart: always
     command:
-      - "--api.dashboard=false"
       - "--api.insecure=false"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
@@ -99,9 +95,10 @@ services:
       - n8n-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.traefik.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.traefik.entrypoints=websecure"
-      - "traefik.http.routers.traefik.tls.certresolver=myresolver"
+      - "traefik.http.routers.n8n.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.n8n.entrypoints=websecure"
+      - "traefik.http.routers.n8n.tls.certresolver=myresolver"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
 
   n8n-bot:
     build:
@@ -110,18 +107,16 @@ services:
     container_name: n8n-bot
     restart: always
     environment:
-      - TG_BOT_TOKEN=${TG_BOT_TOKEN}
-      - TG_USER_ID=${TG_USER_ID}
+      TG_BOT_TOKEN: ${TG_BOT_TOKEN}
+      TG_USER_ID: ${TG_USER_ID}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./backup_n8n.sh:/opt/n8n-install/backup_n8n.sh:ro
       - ./backups:/opt/n8n-install/backups
-      - ./update_n8n.sh:/update_n8n.sh:ro
-      - ./.env:/opt/n8n-install/.env:ro
+      - ./logs:/opt/n8n-install/logs
     networks:
       - n8n-network
     depends_on:
-      - n8n
+      - n8n-app
 
 volumes:
   n8n_data:
@@ -132,6 +127,3 @@ volumes:
 networks:
   n8n-network:
     driver: bridge
-```
-
----

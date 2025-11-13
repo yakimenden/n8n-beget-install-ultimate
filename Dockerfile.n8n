@@ -1,4 +1,4 @@
-```dockerfile
+dockerfile
 FROM n8nio/n8n:latest
 
 USER root
@@ -67,6 +67,3 @@ done
 USER node
 
 EXPOSE 5678
-```
-
----

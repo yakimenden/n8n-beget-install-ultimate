@@ -1,4 +1,4 @@
-```gitignore
+gitignore
 # Environment variables
 .env
 .env.*.local
@@ -44,6 +44,3 @@ thumbs.db
 # Temporary files
 tmp/
 temp/
-```
-
----
